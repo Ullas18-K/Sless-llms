@@ -1,0 +1,93 @@
+# Purpose: Deploy FastAPI LLM API with Ollama sidecar and model volume for Minikube.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: serverless-llm
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: serverless-llm
+  template:
+    metadata:
+      labels:
+        app: serverless-llm
+    spec:
+      initContainers:
+        - name: pull-model
+          image: ollama/ollama:latest
+          command:
+            - sh
+            - -c
+            - |
+              ollama serve &
+              sleep 8
+              ollama pull tinyllama
+          volumeMounts:
+            - name: ollama-models
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+      containers:
+        - name: llm-api
+          image: ullas911/serverless-llm:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: OLLAMA_URL
+              value: http://localhost:11434
+            - name: DEFAULT_MODEL
+              value: tinyllama
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+          volumeMounts:
+            - name: ollama-models
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          readinessProbe:
+            tcpSocket:
+              port: 11434
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 11434
+            initialDelaySeconds: 40
+            periodSeconds: 20
+      volumes:
+        - name: ollama-models
+          emptyDir: {}

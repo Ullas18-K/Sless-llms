@@ -1,0 +1,25 @@
+# Purpose: KEDA ScaledObject for serverless scale-to-zero behavior on inference traffic.
+# Optional HTTP scaler install command (if you choose HTTP add-on trigger):
+# helm repo add kedacore https://kedacore.github.io/charts
+# helm repo update
+# helm install keda kedacore/keda --namespace keda --create-namespace
+# helm install keda-http-add-on kedacore/keda-add-ons-http --namespace keda
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: serverless-llm-scaledobject
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: serverless-llm
+  minReplicaCount: 0
+  maxReplicaCount: 3
+  cooldownPeriod: 120
+  pollingInterval: 15
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-operated.monitoring.svc.cluster.local:9090
+        metricName: http_requests_total
+        query: sum(rate(http_requests_total{path="/chat"}[1m]))
+        threshold: "1"

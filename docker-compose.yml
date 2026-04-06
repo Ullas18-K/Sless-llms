@@ -1,0 +1,48 @@
+# Purpose: Local development stack for Ollama, FastAPI API, Prometheus, and Grafana.
+
+version: "3.9"
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+
+  llm-api:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: llm-api
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - DEFAULT_MODEL=tinyllama
+    ports:
+      - "8000:8000"
+    depends_on:
+      - ollama
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    volumes:
+      - ./monitoring/grafana-dashboard.json:/var/lib/grafana/dashboards/serverless-llm-dashboard.json:ro
+
+volumes:
+  ollama-models:

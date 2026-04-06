@@ -1,0 +1,59 @@
+# Purpose: Prevent local artifacts, secrets, and generated files from being committed.
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment and secrets
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.crt
+secrets/
+
+# Build and packaging
+dist/
+build/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Logs and temp
+*.log
+*.tmp
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Editors and IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+
+# Docker and local runtime artifacts
+docker-data/
+
+# Jenkins workspace artifacts
+jenkins-failure.log

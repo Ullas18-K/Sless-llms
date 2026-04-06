@@ -1,0 +1,106 @@
+/*
+Purpose: Declarative Jenkins pipeline for test, build, push, deploy, and AI-assisted notifications.
+*/
+
+pipeline {
+  agent any
+
+  environment {
+    DOCKERHUB_REPO = 'ullas911/serverless-llm'
+    OLLAMA_URL = 'http://localhost:11434'
+    KUBE_CONFIG = credentials('kubeconfig')
+    DISCORD_WEBHOOK = credentials('discord-webhook')
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Test') {
+      steps {
+        sh '''
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r app/requirements.txt
+          cd app
+          pytest -q
+        '''
+      }
+    }
+
+    stage('Build') {
+      steps {
+        sh '''
+          docker build -t ${DOCKERHUB_REPO}:${BUILD_NUMBER} ./app
+          docker tag ${DOCKERHUB_REPO}:${BUILD_NUMBER} ${DOCKERHUB_REPO}:latest
+        '''
+      }
+    }
+
+    stage('Push') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+          sh '''
+            echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
+            docker push ${DOCKERHUB_REPO}:${BUILD_NUMBER}
+            docker push ${DOCKERHUB_REPO}:latest
+            docker logout
+          '''
+        }
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        sh '''
+          export KUBECONFIG="$KUBE_CONFIG"
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/hpa.yaml
+          kubectl apply -f k8s/ingress.yaml || true
+          kubectl set image deployment/serverless-llm llm-api=${DOCKERHUB_REPO}:${BUILD_NUMBER}
+          kubectl rollout status deployment/serverless-llm --timeout=180s
+        '''
+      }
+    }
+
+    stage('Notify') {
+      steps {
+        sh '''
+          python3 jenkins/devops-bot.py \
+            --status success \
+            --build-url "${BUILD_URL}" \
+            --webhook-url "${DISCORD_WEBHOOK}" \
+            --ollama-url "${OLLAMA_URL}" \
+            --build-number "${BUILD_NUMBER}"
+        '''
+      }
+    }
+  }
+
+  post {
+    failure {
+      script {
+        def stageLogs = currentBuild.rawBuild.getLog(400).join('\n')
+        writeFile file: 'jenkins-failure.log', text: stageLogs
+      }
+      sh '''
+        LOG_SNIPPET=$(python3 - <<'PY'
+import pathlib
+text = pathlib.Path('jenkins-failure.log').read_text(encoding='utf-8', errors='ignore')
+text = text.replace('\n', ' ').replace('\r', ' ')
+print(text[:12000])
+PY
+)
+        python3 jenkins/devops-bot.py \
+          --status failure \
+          --build-url "${BUILD_URL}" \
+          --webhook-url "${DISCORD_WEBHOOK}" \
+          --ollama-url "${OLLAMA_URL}" \
+          --logs "$LOG_SNIPPET"
+      '''
+    }
+  }
+}

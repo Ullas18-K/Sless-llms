@@ -1,0 +1,23 @@
+# Purpose: Helm values override for kube-prometheus-stack to scrape app and Jenkins metrics.
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 15s
+    additionalScrapeConfigs:
+      - job_name: serverless-llm-api
+        metrics_path: /metrics
+        scrape_interval: 15s
+        kubernetes_sd_configs:
+          - role: endpoints
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: serverless-llm-clusterip
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: http
+      - job_name: jenkins
+        metrics_path: /prometheus
+        scrape_interval: 15s
+        static_configs:
+          - targets:
+              - jenkins.default.svc.cluster.local:8080

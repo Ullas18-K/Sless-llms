@@ -1,0 +1,21 @@
+# Purpose: Optional local ingress route for serverless-llm API access.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: serverless-llm-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: serverless-llm.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: serverless-llm-clusterip
+                port:
+                  number: 8000
