@@ -127,7 +127,7 @@ EOF
           --build-url "${BUILD_URL}" \
           --webhook-url "${DISCORD_WEBHOOK}" \
           --ollama-url "${OLLAMA_URL}" \
-          --logs "$LOG_SNIPPET"
+          --logs "$LOG_SNIPPET" || true
       '''
     }
   }
