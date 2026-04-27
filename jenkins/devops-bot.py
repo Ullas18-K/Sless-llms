@@ -28,9 +28,15 @@ def post_json(url: str, payload: dict[str, Any], timeout: int = 30) -> dict[str,
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=timeout) as response:
-        body = response.read().decode("utf-8", errors="ignore")
-        return json.loads(body) if body else {}
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            body = response.read().decode("utf-8", errors="ignore")
+            return json.loads(body) if body else {}
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(
+            f"HTTP {exc.code} {exc.reason} from {url!r} — Discord says: {error_body}"
+        ) from exc
 
 
 def analyze_failure_with_ollama(ollama_url: str, logs: str, model: str) -> str:
