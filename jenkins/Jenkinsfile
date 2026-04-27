@@ -10,6 +10,7 @@ pipeline {
     OLLAMA_URL = 'http://localhost:11434'
     KUBE_CONFIG = credentials('kubeconfig')
     DISCORD_WEBHOOK = credentials('discord-webhook')
+    DOCKER_CONFIG = "${WORKSPACE}/.docker"
   }
 
   stages {
@@ -46,6 +47,8 @@ pipeline {
     stage('Build') {
       steps {
         sh '''
+          mkdir -p "$DOCKER_CONFIG"
+          docker logout || true
           docker build -t ${DOCKERHUB_REPO}:${BUILD_NUMBER} ./app
           docker tag ${DOCKERHUB_REPO}:${BUILD_NUMBER} ${DOCKERHUB_REPO}:latest
         '''
@@ -56,6 +59,7 @@ pipeline {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
           sh '''
+            mkdir -p "$DOCKER_CONFIG"
             echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
             docker push ${DOCKERHUB_REPO}:${BUILD_NUMBER}
             docker push ${DOCKERHUB_REPO}:latest
