@@ -103,10 +103,12 @@ docker exec -it ollama ollama pull tinyllama
 Functional checks:
 
 ```powershell
-curl http://localhost:8000/health
-curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d '{"prompt":"Hello from portfolio demo","model":"tinyllama"}'
-curl http://localhost:8000/metrics
+Invoke-RestMethod -Method GET -Uri "http://localhost:8000/health"
+Invoke-RestMethod -Method POST -Uri "http://localhost:8000/chat" -ContentType "application/json" -Body '{"prompt":"Hello from portfolio demo","model":"tinyllama"}'
+Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:8000/metrics"
 ```
+
+If you want to use real curl in PowerShell, call `curl.exe` instead of `curl`.
 
 Open UIs:
 - API docs: http://localhost:8000/docs
@@ -124,14 +126,16 @@ Set your repo and build locally first:
 
 ```powershell
 $env:DOCKERHUB_REPO="ullas911/serverless-llm"
-docker build -t "$env:DOCKERHUB_REPO:local-test" .\app
+docker build -t "${env:DOCKERHUB_REPO}:local-test" .\app
+docker tag "${env:DOCKERHUB_REPO}:local-test" "${env:DOCKERHUB_REPO}:latest"
 ```
 
 Login and push:
 
 ```powershell
 docker login
-docker push "$env:DOCKERHUB_REPO:local-test"
+docker push "${env:DOCKERHUB_REPO}:local-test"
+docker push "${env:DOCKERHUB_REPO}:latest"
 ```
 
 Acceptance checks:
@@ -151,9 +155,10 @@ Apply manifests:
 ```powershell
 kubectl apply -f .\k8s\deployment.yaml
 kubectl apply -f .\k8s\service.yaml
-kubectl apply -f .\k8s\hpa.yaml
 kubectl apply -f .\k8s\ingress.yaml
 ```
+
+Note: apply `.\k8s\hpa.yaml` only after KEDA is installed in Phase 5.
 
 Watch rollout:
 
@@ -169,10 +174,24 @@ Access service externally:
 minikube service serverless-llm-nodeport --url
 ```
 
+Windows + Docker driver note:
+- If Minikube prints `the terminal needs to be open to run it` and does not give a usable URL, use port-forward instead.
+- Keep the port-forward terminal open while testing.
+
+```powershell
+kubectl port-forward svc/serverless-llm-nodeport 8000:8000
+```
+
 Use the returned URL for test call:
 
 ```powershell
-curl -X POST "<NODEPORT_URL>/chat" -H "Content-Type: application/json" -d '{"prompt":"test from k8s","model":"tinyllama"}'
+Invoke-RestMethod -Method POST -Uri "<NODEPORT_URL>/chat" -ContentType "application/json" -Body '{"prompt":"test from k8s","model":"tinyllama"}'
+```
+
+If using port-forward, test with:
+
+```powershell
+Invoke-RestMethod -Method POST -Uri "http://localhost:8000/chat" -ContentType "application/json" -Body '{"prompt":"test from k8s","model":"tinyllama"}'
 ```
 
 Acceptance checks:

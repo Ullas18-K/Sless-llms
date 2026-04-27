@@ -19,7 +19,7 @@ spec:
   triggers:
     - type: prometheus
       metadata:
-        serverAddress: http://prometheus-operated.monitoring.svc.cluster.local:9090
+        serverAddress: http://monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
         metricName: http_requests_total
         query: sum(rate(http_requests_total{path="/chat"}[1m]))
         threshold: "1"
