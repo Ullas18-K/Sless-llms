@@ -283,7 +283,10 @@ Create these credentials exactly:
 
 Pipeline setup:
 1. New Pipeline job
-2. Point to repo containing `jenkins/Jenkinsfile`
+2. Set **Definition** to `Pipeline script from SCM`
+3. Set **SCM** to `Git` and use your repository URL
+4. Set **Branch Specifier** to `*/main`
+5. Set **Script Path** to `jenkins/Jenkinsfile` (exact case-sensitive path)
 3. Trigger build
 
 Acceptance checks:

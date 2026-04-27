@@ -22,10 +22,14 @@ pipeline {
     stage('Test') {
       steps {
         sh '''
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r app/requirements.txt
-          cd app
-          pytest -q
+          PYTHON_BIN="$(command -v python3 || command -v python || true)"
+          if [ -z "$PYTHON_BIN" ]; then
+            echo "Python runtime not found in Jenkins agent. Install python3/python before running pipeline."
+            exit 127
+          fi
+          "$PYTHON_BIN" -m pip install --upgrade pip
+          "$PYTHON_BIN" -m pip install -r app/requirements.txt
+          "$PYTHON_BIN" -m pytest app/tests -q
         '''
       }
     }
@@ -69,7 +73,12 @@ pipeline {
     stage('Notify') {
       steps {
         sh '''
-          python3 jenkins/devops-bot.py \
+          PYTHON_BIN="$(command -v python3 || command -v python || true)"
+          if [ -z "$PYTHON_BIN" ]; then
+            echo "Python runtime not found, skipping success notification."
+            exit 0
+          fi
+          "$PYTHON_BIN" jenkins/devops-bot.py \
             --status success \
             --build-url "${BUILD_URL}" \
             --webhook-url "${DISCORD_WEBHOOK}" \
@@ -82,19 +91,27 @@ pipeline {
 
   post {
     failure {
-      script {
-        def stageLogs = currentBuild.rawBuild.getLog(400).join('\n')
-        writeFile file: 'jenkins-failure.log', text: stageLogs
-      }
       sh '''
-        LOG_SNIPPET=$(python3 - <<'PY'
+        cat > jenkins-failure.log <<EOF
+Jenkins pipeline failed.
+Build URL: ${BUILD_URL}
+Job: ${JOB_NAME}
+Build number: ${BUILD_NUMBER}
+Please check full console logs at: ${BUILD_URL}console
+EOF
+        PYTHON_BIN="$(command -v python3 || command -v python || true)"
+        if [ -z "$PYTHON_BIN" ]; then
+          echo "Python runtime not found, skipping failure notification."
+          exit 0
+        fi
+        LOG_SNIPPET=$($PYTHON_BIN - <<'PY'
 import pathlib
 text = pathlib.Path('jenkins-failure.log').read_text(encoding='utf-8', errors='ignore')
 text = text.replace('\n', ' ').replace('\r', ' ')
 print(text[:12000])
 PY
 )
-        python3 jenkins/devops-bot.py \
+        "$PYTHON_BIN" jenkins/devops-bot.py \
           --status failure \
           --build-url "${BUILD_URL}" \
           --webhook-url "${DISCORD_WEBHOOK}" \
