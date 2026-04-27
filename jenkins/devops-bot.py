@@ -25,7 +25,10 @@ def post_json(url: str, payload: dict[str, Any], timeout: int = 30) -> dict[str,
     req = urllib.request.Request(
         url=url,
         data=data,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (compatible; devops-bot/1.0)",
+        },
         method="POST",
     )
     try:
